@@ -9,7 +9,7 @@ var mongoose = require('mongoose');
 var bodyParser = require('body-parser');
 var passport = require('passport');
 var flash = require('connect-flash');
-
+var MongoStore = require('connect-mongo')(session);
 
 var configDB = require("./config/database.js");
 mongoose.connect(configDB.url);
@@ -19,13 +19,30 @@ app.use(cookieParser());
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(session({secret: 'anyStringOfText',
 				 saveUninitialized: true,
-				 resave: true}));
+				 resave: true,
+				 store: new MongoStore({mongooseConnection: mongoose.connection,
+				 						ttl : 2*24*60*60
+				 })
+				}));
 
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(flash());
 
 app.set('view engine', 'ejs');
+
+var api = express.Router();
+require('./app/routers/api.js')(api, passport);
+app.use('/api', api);
+
+var auth = express.Router();
+require('./app/routers/auth.js')(auth, passport);
+app.use('/auth', auth);
+
+var secure = express.Router();
+require('./app/routers/secure.js')(secure, passport);
+app.use('/', secure);
+
 
 
 /*app.use('/', function(req, res) {
